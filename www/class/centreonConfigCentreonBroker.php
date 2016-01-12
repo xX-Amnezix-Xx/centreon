@@ -285,6 +285,11 @@ class CentreonConfigCentreonBroker
                 $elementType = 'advmultiselect';
                 $elementAttr = $this->getListValues($field['id']);
                 break;
+            case 'influxdbcolumns':
+                $displayName = array(_($field['displayname']), _("Available"), _("Selected"));
+                $elementType = 'advmultiselect';
+                $elementAttr = $this->getListValues($field['id']);
+                break;
             case 'text':
             default:
                 $elementType = 'text';

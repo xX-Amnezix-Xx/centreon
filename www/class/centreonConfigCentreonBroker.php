@@ -240,7 +240,6 @@ class CentreonConfigCentreonBroker
                                                                                                                 'id' => $tag . '[' . $formId . '][name]',
                                                                                                                 'class' => 'v_required'
                                                                                                                 )));
-        //$qf->addRule($tag . '[' . $formId . '][name]', _('Name'), 'required');
 
         $type = $this->getTypeShortname($typeId);
         $qf->addElement('hidden', $tag . '[' . $formId . '][type]');
@@ -253,6 +252,7 @@ class CentreonConfigCentreonBroker
         $qf->setDefaults(array($tag . '[' . $formId . '][blockId]' => $blockId));
 
         foreach ($fields as $field) {
+var_dump($field['group']);
             $elementName = $this->getElementName($tag, $formId, $field);
             $elementType = null;
             $elementAttr = array();
@@ -285,12 +285,6 @@ class CentreonConfigCentreonBroker
                 $elementType = 'advmultiselect';
                 $elementAttr = $this->getListValues($field['id']);
                 break;
-            case 'influxdbcolumns':
-                $displayName = array(_($field['displayname']), _("Available"), _("Selected"));
-                $elementType = 'advmultiselect';
-                $elementAttr = $this->getListValues($field['id']);
-                break;
-            case 'text':
             default:
                 $elementType = 'text';
                 $elementAttr = $this->attrText;
@@ -372,15 +366,22 @@ class CentreonConfigCentreonBroker
          * Get the list of fields for a block
          */
         $fields = array();
-        $query = "SELECT f.cb_field_id, f.fieldname, f.displayname, f.fieldtype, f.description, f.external, tfr.is_required, tfr.order_display, f.cb_fieldgroup_id
-        	FROM cb_field f, cb_type_field_relation tfr
-        		WHERE f.cb_field_id = tfr.cb_field_id AND (tfr.cb_type_id = %d
-        			OR tfr.cb_type_id IN (SELECT t.cb_type_id
-        				FROM cb_type t, cb_module_relation mr
-        				WHERE mr.inherit_config = 1 AND t.cb_module_id IN (SELECT mr2.module_depend_id
-        					FROM cb_type t2, cb_module_relation mr2
-        					WHERE t2.cb_module_id = mr2.cb_module_id AND mr2.inherit_config = 1 AND t2.cb_type_id = %d)))
-        	ORDER BY tfr.order_display";
+        $query = "SELECT f.cb_field_id, f.fieldname, f.displayname, f.fieldtype, f.description, f.external, tfr.is_required, tfr.order_display, f.cb_fieldgroup_id, fg.multiple
+            FROM cb_field f
+            JOIN cb_type_field_relation tfr ON f.cb_field_id = tfr.cb_field_id
+            LEFT JOIN cb_fieldgroup fg ON f.cb_fieldgroup_id = fg.cb_fieldgroup_id
+            WHERE f.cb_field_id = tfr.cb_field_id
+            AND (
+                tfr.cb_type_id = %d
+                OR tfr.cb_type_id IN (
+                    SELECT t.cb_type_id
+                    FROM cb_type t, cb_module_relation mr
+                    WHERE mr.inherit_config = 1 AND t.cb_module_id IN (
+                        SELECT mr2.module_depend_id
+                        FROM cb_type t2, cb_module_relation mr2
+                        WHERE t2.cb_module_id = mr2.cb_module_id AND mr2.inherit_config = 1 AND t2.cb_type_id = %d))
+            )
+            ORDER BY tfr.order_display";
         $res = $this->db->query(sprintf($query, $typeId, $typeId));
         if (PEAR::isError($res)) {
             return false;
@@ -395,6 +396,7 @@ class CentreonConfigCentreonBroker
             $field['required'] = $row['is_required'];
             $field['order'] = $row['order_display'];
             $field['group'] = $row['cb_fieldgroup_id'];
+            $field['group_multiple'] = $row['multiple'];
             if (!is_null($row['external']) && $row['external'] != '') {
                 $field['value'] = $row['external'];
             } else {
